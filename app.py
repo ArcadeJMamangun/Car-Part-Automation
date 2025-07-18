@@ -12,4 +12,7 @@ class ScrapeParams(BaseModel):
 
 @app.post("/scrape")
 def scrape(params: ScrapeParams):
-    return run_scraper(params.year, params.model, params.part, params.country)
+    try:
+        return run_scraper(params.year, params.model, params.part, params.country)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

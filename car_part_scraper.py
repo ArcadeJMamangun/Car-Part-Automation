@@ -8,19 +8,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
-# Setup Chrome driver
-options = webdriver.ChromeOptions()
-options.add_argument("--headless=new")
-options.add_argument("--no-sandbox")
-options.add_argument("--disable-dev-shm-usage")
-options.add_argument("--disable-gpu")
-# Setup Chrome driver
-service = Service(ChromeDriverManager().install())
-driver = webdriver.Chrome(service=service, options=options)
-
 BASE_URL = "https://www.car-part.com/"
 
-def scrape_results_from_current_page(sub_option_label, year, model, part):
+def scrape_results_from_current_page(driver, sub_option_label, year, model, part):
     results = []
     table = driver.find_element(By.XPATH, "//table[@border='1' and @cellpadding='4']")
     rows = table.find_elements(By.TAG_NAME, "tr")[1:-1]  # Skip first and last (header/footer)
@@ -79,7 +69,7 @@ def scrape_results_from_current_page(sub_option_label, year, model, part):
 
     return results
 
-def process(year, model, part, country):
+def process(driver, year, model, part, country):
     all_results = []
     driver.get(BASE_URL)
 
@@ -129,7 +119,7 @@ def process(year, model, part, country):
             # Wait for results table
             WebDriverWait(driver, 10).until(EC.presence_of_all_elements_located((By.XPATH, "//table[@border='1' and @cellpadding='4']//tr")))
             # Page 1
-            all_results.extend(scrape_results_from_current_page(label_text, year, model, part))
+            all_results.extend(scrape_results_from_current_page(driver, label_text, year, model, part))
 
             # Get pagination links (skip page 1 since it's already scraped)
             pagination_links = driver.find_elements(By.XPATH, "//div[.//b[contains(text(), 'Additional Result Pages')]]//table//a")
@@ -148,7 +138,7 @@ def process(year, model, part, country):
 
                     links[page_index].click()
                     WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//table[@border='1' and @cellpadding='4']//tr")))
-                    all_results.extend(scrape_results_from_current_page(label_text, year, model, part))
+                    all_results.extend(scrape_results_from_current_page(driver, label_text, year, model, part))
 
                 except Exception as e:
                     print(f"⚠️ Error on pagination page {page_index+2}: {e}")
@@ -157,12 +147,27 @@ def process(year, model, part, country):
         except Exception as e:
             print(f"Error in Sub Option Handling as {e}")
 
-    driver.quit()
     return all_results
 
 def run_scraper(year: str, model: str, part: str, country: str) -> list[dict]:
-    results = process(year, model, part, country)
-    return results
+    driver = create_drive()
+    try:
+        return process(driver, year, model, part, country)
+    finally:
+        driver.quit()
+
+def create_drive():
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+
+    # Tell Selenium where to find Chrome (important for Render)
+    options.binary_location = "/opt/render/project/.render/chrome/opt/google/chrome/google-chrome"
+    
+    service = Service(ChromeDriverManager().install())
+    return webdriver.Chrome(service=service, options=options)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -172,15 +177,7 @@ if __name__ == "__main__":
     parser.add_argument("--country", required=True)
     args = parser.parse_args()
 
-    # Setup Chrome driver
-    options = webdriver.ChromeOptions()
-    options.add_argument("--headless=new")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
-    # Setup Chrome driver
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=options)
+    # driver = create_drive()
 
-    results = process(args.year, args.model, args.part, args.country)
-    print("✅ Extracted and saved to car_part_results.csv")
+    # results = process(driver, args.year, args.model, args.part, args.country)
+    # print("✅ Extracted and saved to car_part_results.csv")
