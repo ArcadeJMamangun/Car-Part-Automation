@@ -5,6 +5,8 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 
 # Setup Chrome driver
 options = webdriver.ChromeOptions()
@@ -13,7 +15,8 @@ options.add_argument("--no-sandbox")
 options.add_argument("--disable-dev-shm-usage")
 options.add_argument("--disable-gpu")
 # Setup Chrome driver
-driver = webdriver.Chrome(options=options)  # Ensure chromedriver is in PATH
+service = Service(ChromeDriverManager().install())
+driver = webdriver.Chrome(service=service, options=options)
 
 BASE_URL = "https://www.car-part.com/"
 
@@ -168,6 +171,16 @@ if __name__ == "__main__":
     parser.add_argument("--part", required=True)
     parser.add_argument("--country", required=True)
     args = parser.parse_args()
+
+    # Setup Chrome driver
+    options = webdriver.ChromeOptions()
+    options.add_argument("--headless=new")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    # Setup Chrome driver
+    service = Service(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=options)
 
     results = process(args.year, args.model, args.part, args.country)
     print("✅ Extracted and saved to car_part_results.csv")
